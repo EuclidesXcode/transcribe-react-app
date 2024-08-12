@@ -1,0 +1,24 @@
+/* Estilos específicos para o App.js */
+.App {
+    text-align: center;
+  }
+  
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #007BFF;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    margin-bottom: 20px;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  .transcript {
+    font-size: 18px;
+    color: #333;
+  }
