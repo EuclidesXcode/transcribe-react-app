@@ -39,12 +39,12 @@ const App = () => {
 
       recorder.ondataavailable = async (event) => {
         audioChunks.push(event.data);
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
         handleAudioStream(audioBlob);
       };
 
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
         handleAudioStream(audioBlob);
       };
 
@@ -57,7 +57,7 @@ const App = () => {
 
   const handleAudioStream = async (audioBlob) => {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', audioBlob, 'audio.wav');
 
     try {
       const response = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
@@ -113,7 +113,7 @@ const App = () => {
 
   return (
     <div style={styles.container}>
-      <h1>Captura e Transcrição de Áudio da Aba</h1>
+      <h1>Por favor aguarde, em manutenção!</h1>
       <button
         onClick={isRecording ? stopCapturing : startCapturing}
         style={isRecording ? styles.buttonRecording : styles.button}
@@ -151,7 +151,7 @@ const styles = {
     padding: '10px 20px',
     fontSize: '16px',
     cursor: 'pointer',
-    backgroundColor: '#FF4D4D', // Vermelho para indicar gravação
+    backgroundColor: '#FF4D4D', 
     color: '#fff',
     border: 'none',
     borderRadius: '5px',
