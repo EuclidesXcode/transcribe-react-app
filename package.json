@@ -9,6 +9,7 @@
     "@mui/icons-material": "^5.16.7",
     "@mui/material": "^5.16.7",
     "axios": "^1.7.4",
+    "docx": "^8.5.0",
     "express": "^4.19.2",
     "google-auth-library": "^9.13.0",
     "jspdf": "^2.5.1",

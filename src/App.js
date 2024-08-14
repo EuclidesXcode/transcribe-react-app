@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import jsPDF from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { Button, Container, Typography, CircularProgress } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
@@ -10,11 +10,10 @@ const AudioRecorder = () => {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [audioURL, setAudioURL] = useState('');
-  const [loadingPDF, setLoadingPDF] = useState(false);
+  const [loadingDOCX, setLoadingDOCX] = useState(false);
   const mediaRecorderRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // Função para iniciar a gravação e a transcrição
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
@@ -33,7 +32,6 @@ const AudioRecorder = () => {
     mediaRecorderRef.current = mediaRecorder;
     mediaRecorder.start();
 
-    // Iniciar a transcrição com a Web Speech API
     const recognition = new window.webkitSpeechRecognition();
     recognition.lang = 'pt-BR';
     recognition.continuous = true;
@@ -58,36 +56,46 @@ const AudioRecorder = () => {
     setRecording(true);
   };
 
-  // Função para parar a gravação e a transcrição
   const stopRecording = () => {
     mediaRecorderRef.current.stop();
     recognitionRef.current.stop();
     setRecording(false);
   };
 
-  // Função para gerar o PDF
-  const generatePDF = () => {
-    setLoadingPDF(true);
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.height;
-    const margin = 10;
-    let y = margin;
-
-    const lines = doc.splitTextToSize(transcript, doc.internal.pageSize.width - 2 * margin);
-
-    lines.forEach((line, index) => {
-      if (y + 10 > pageHeight - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(line, margin, y);
-      y += 10;
+  const generateDOCX = async () => {
+    setLoadingDOCX(true);
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              text: 'Transcrição de Áudio',
+              heading: HeadingLevel.HEADING_1,
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: transcript,
+                  font: 'Arial',
+                }),
+              ],
+            }),
+          ],
+        },
+      ],
     });
 
-    setTimeout(() => {
-      doc.save('transcription.pdf');
-      setLoadingPDF(false);
-    }, 1000);
+    // Salvar o arquivo DOCX
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'transcription.docx';
+    link.click();
+    URL.revokeObjectURL(url);
+
+    setLoadingDOCX(false);
   };
 
   useEffect(() => console.log("Transcrição: ", transcript), [transcript]);
@@ -95,7 +103,7 @@ const AudioRecorder = () => {
   return (
     <Container>
       <Typography variant="h4" align="center" gutterBottom>
-        Transcritor de Audio da Anna Luiza
+        Transcritor de Audio da Ana Luiza
       </Typography>
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
         <Button
@@ -111,12 +119,12 @@ const AudioRecorder = () => {
         <Button
           variant="contained"
           color="primary"
-          startIcon={loadingPDF ? <CircularProgress size={24} /> : <PictureAsPdfIcon />}
-          onClick={generatePDF}
+          startIcon={loadingDOCX ? <CircularProgress size={24} /> : <PictureAsPdfIcon />}
+          onClick={generateDOCX}
           sx={{ fontSize: 20, padding: '10px 30px', marginRight: '20px' }}
-          disabled={!transcript || loadingPDF}
+          disabled={!transcript || loadingDOCX}
         >
-          {loadingPDF ? 'Gerando PDF...' : 'Gerar PDF'}
+          {loadingDOCX ? 'Gerando DOCX...' : 'Gerar DOCX'}
         </Button>
 
         {audioURL && (
