@@ -1,168 +1,123 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import jsPDF from 'jspdf';
+import { Button, Container, Typography, CircularProgress } from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopIcon from '@mui/icons-material/Stop';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import AudiotrackIcon from '@mui/icons-material/Audiotrack';
 
-const App = () => {
+const AudioRecorder = () => {
+  const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [accessToken, setAccessToken] = useState('');
+  const [audioURL, setAudioURL] = useState('');
+  const [loadingPDF, setLoadingPDF] = useState(false); // Estado para controlar o loading do PDF
+  const mediaRecorderRef = useRef(null);
+  const audioChunks = useRef([]);
 
-  useEffect(() => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-      alert('Captura de áudio da aba não suportada pelo navegador.');
-      return;
-    }
-    fetchAccessToken();
-  }, []);
-
-  const fetchAccessToken = async () => {
-    try {
-      const response = await fetch('http://localhost:3002/get-token');
-      const data = await response.json();
-      setAccessToken(data.accessToken);
-    } catch (error) {
-      console.error('Error fetching access token:', error);
-    }
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorderRef.current = new MediaRecorder(stream);
+    mediaRecorderRef.current.ondataavailable = event => {
+      audioChunks.current.push(event.data);
+    };
+    mediaRecorderRef.current.start();
+    setRecording(true);
   };
 
-  const startCapturing = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        audio: true,
-        video: true
-      });
-
-      const recorder = new MediaRecorder(stream);
-      setMediaRecorder(recorder);
-
-      let audioChunks = [];
-
-      recorder.ondataavailable = async (event) => {
-        audioChunks.push(event.data);
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        handleAudioStream(audioBlob);
-      };
-
-      recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        handleAudioStream(audioBlob);
-      };
-
-      recorder.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Erro ao capturar áudio: ", error);
-    }
+  const stopRecording = () => {
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current.onstop = () => {
+      const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      setAudioURL(audioUrl);
+      
+      // Adiciona um pequeno delay antes de transcrever
+      setTimeout(() => {
+        transcribeAudio(audioBlob);
+      }, 500); // 500ms delay
+     
+      audioChunks.current = [];
+    };
+    setRecording(false);
   };
 
-  const handleAudioStream = async (audioBlob) => {
-    const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.wav');
+  const transcribeAudio = (audioBlob) => {
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-    try {
-      const response = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
-        method: 'POST',
-        body: JSON.stringify({
-          config: {
-            encoding: 'WEBM_OPUS',
-            sampleRateHertz: 48000,
-            languageCode: 'pt-BR'
-          },
-          audio: {
-            content: await blobToBase64(audioBlob)
-          }
-        }),
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    recognition.onresult = (event) => {
+      const transcriptText = Array.from(event.results)
+        .map(result => result[0])
+        .map(result => result.transcript)
+        .join('');
 
-      const result = await response.json();
-      if (response.ok) {
-        setTranscript(prev => prev + '\n' + result.results[0].alternatives[0].transcript);
-      } else {
-        console.error('Error transcribing audio:', result.error);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
+      setTranscript(transcriptText);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Erro na transcrição:', event.error);
+      alert('Erro na transcrição: ' + event.error);
+    };
+
+    recognition.start();
   };
 
-  const blobToBase64 = (blob) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  const stopCapturing = () => {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const downloadPDF = () => {
+  const generatePDF = () => {
+    setLoadingPDF(true); // Inicia o loading do PDF
     const doc = new jsPDF();
     doc.text(transcript, 10, 10);
-    doc.save('transcription.pdf');
+    setTimeout(() => {
+      doc.save('transcription.pdf');
+      setLoadingPDF(false); // Termina o loading do PDF
+    }, 1000); // Simula um tempo de processamento
   };
 
+  useEffect(() => console.log("-> ", transcript), [transcript])
+
   return (
-    <div style={styles.container}>
-      <h1>Por favor aguarde, em manutenção!</h1>
-      <button
-        onClick={isRecording ? stopCapturing : startCapturing}
-        style={isRecording ? styles.buttonRecording : styles.button}
-      >
-        {isRecording ? 'Pausar Transcrição' : 'Iniciar Captura'}
-      </button>
-      <button onClick={downloadPDF} style={styles.button}>
-        Baixar PDF
-      </button>
-      <p style={styles.transcript}>Transcrição: {transcript}</p>
-    </div>
+    <Container>
+      <Typography variant="h4" align="center" gutterBottom>
+        Transcritor de Audio da Ana Luiza
+      </Typography>
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+        <Button
+          variant="contained"
+          color={recording ? 'error' : 'success'}
+          startIcon={recording ? <StopIcon /> : <PlayArrowIcon />}
+          onClick={recording ? stopRecording : startRecording}
+          sx={{ fontSize: 20, padding: '10px 30px', marginRight: '20px' }}
+        >
+          {recording ? 'Parar Gravação' : 'Iniciar Gravação'}
+        </Button>
+
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={loadingPDF ? <CircularProgress size={24} /> : <PictureAsPdfIcon />}
+          onClick={generatePDF}
+          sx={{ fontSize: 20, padding: '10px 30px', marginRight: '20px' }}
+          disabled={!transcript || loadingPDF} // Desabilita o botão durante o loading
+        >
+          {loadingPDF ? 'Gerando PDF...' : 'Gerar PDF'}
+        </Button>
+
+        {audioURL && (
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<AudiotrackIcon />}
+            sx={{ fontSize: 20, padding: '10px 30px' }}
+            href={audioURL}
+            download="audio.wav"
+          >
+            Baixar Áudio
+          </Button>
+        )}
+      </div>
+    </Container>
   );
 };
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: '50px',
-    fontFamily: 'Arial, sans-serif',
-  },
-  button: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    backgroundColor: '#007BFF',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    marginBottom: '20px',
-    marginRight: '10px'
-  },
-  buttonRecording: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    backgroundColor: '#FF4D4D', 
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    marginBottom: '20px',
-    marginRight: '10px'
-  },
-  transcript: {
-    fontSize: '18px',
-    color: '#333',
-    whiteSpace: 'pre-wrap',
-  },
-};
-
-export default App;
+export default AudioRecorder;
