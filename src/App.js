@@ -10,71 +10,73 @@ const AudioRecorder = () => {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [audioURL, setAudioURL] = useState('');
-  const [loadingPDF, setLoadingPDF] = useState(false); // Estado para controlar o loading do PDF
+  const [loadingPDF, setLoadingPDF] = useState(false);
   const mediaRecorderRef = useRef(null);
-  const audioChunks = useRef([]);
+  const recognitionRef = useRef(null);
 
+  // Função para iniciar a gravação e a transcrição
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorderRef.current = new MediaRecorder(stream);
-    mediaRecorderRef.current.ondataavailable = event => {
-      audioChunks.current.push(event.data);
-    };
-    mediaRecorderRef.current.start();
-    setRecording(true);
-  };
+    const mediaRecorder = new MediaRecorder(stream);
+    const audioChunks = [];
 
-  const stopRecording = () => {
-    mediaRecorderRef.current.stop();
-    mediaRecorderRef.current.onstop = () => {
-      const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
+    mediaRecorder.ondataavailable = event => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
       const audioUrl = URL.createObjectURL(audioBlob);
       setAudioURL(audioUrl);
-      
-      // Adiciona um pequeno delay antes de transcrever
-      setTimeout(() => {
-        transcribeAudio(audioBlob);
-      }, 500); // 500ms delay
-     
-      audioChunks.current = [];
     };
-    setRecording(false);
-  };
 
-  const transcribeAudio = (audioBlob) => {
+    mediaRecorderRef.current = mediaRecorder;
+    mediaRecorder.start();
+
+    // Iniciar a transcrição com a Web Speech API
     const recognition = new window.webkitSpeechRecognition();
     recognition.lang = 'pt-BR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
-    recognition.onresult = (event) => {
-      const transcriptText = Array.from(event.results)
+    recognition.onresult = event => {
+      const interimTranscript = Array.from(event.results)
         .map(result => result[0])
         .map(result => result.transcript)
         .join('');
 
-      setTranscript(transcriptText);
+      setTranscript(interimTranscript);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = event => {
       console.error('Erro na transcrição:', event.error);
-      alert('Erro na transcrição: ' + event.error);
     };
 
     recognition.start();
+    recognitionRef.current = recognition;
+
+    setRecording(true);
   };
 
+  // Função para parar a gravação e a transcrição
+  const stopRecording = () => {
+    mediaRecorderRef.current.stop();
+    recognitionRef.current.stop();
+    setRecording(false);
+  };
+
+  // Função para gerar o PDF
   const generatePDF = () => {
-    setLoadingPDF(true); // Inicia o loading do PDF
+    setLoadingPDF(true);
     const doc = new jsPDF();
     doc.text(transcript, 10, 10);
     setTimeout(() => {
       doc.save('transcription.pdf');
-      setLoadingPDF(false); // Termina o loading do PDF
-    }, 1000); // Simula um tempo de processamento
+      setLoadingPDF(false);
+    }, 1000);
   };
 
-  useEffect(() => console.log("-> ", transcript), [transcript])
+  useEffect(() => console.log("Transcrição: ", transcript), [transcript]);
 
   return (
     <Container>
@@ -98,7 +100,7 @@ const AudioRecorder = () => {
           startIcon={loadingPDF ? <CircularProgress size={24} /> : <PictureAsPdfIcon />}
           onClick={generatePDF}
           sx={{ fontSize: 20, padding: '10px 30px', marginRight: '20px' }}
-          disabled={!transcript || loadingPDF} // Desabilita o botão durante o loading
+          disabled={!transcript || loadingPDF}
         >
           {loadingPDF ? 'Gerando PDF...' : 'Gerar PDF'}
         </Button>
