@@ -69,7 +69,21 @@ const AudioRecorder = () => {
   const generatePDF = () => {
     setLoadingPDF(true);
     const doc = new jsPDF();
-    doc.text(transcript, 10, 10);
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 10;
+    let y = margin;
+
+    const lines = doc.splitTextToSize(transcript, doc.internal.pageSize.width - 2 * margin);
+
+    lines.forEach((line, index) => {
+      if (y + 10 > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += 10;
+    });
+
     setTimeout(() => {
       doc.save('transcription.pdf');
       setLoadingPDF(false);
@@ -81,7 +95,7 @@ const AudioRecorder = () => {
   return (
     <Container>
       <Typography variant="h4" align="center" gutterBottom>
-        Transcritor de Audio da Ana Luiza
+        Transcritor de Audio da Anna Luiza
       </Typography>
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
         <Button
