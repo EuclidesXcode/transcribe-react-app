@@ -103,15 +103,15 @@ const AudioRecorder = () => {
   return (
     <Container>
       <Typography variant="h4" align="center" gutterBottom>
-        Transcritor de Audio da Ana Luiza
+        Transcritor de Áudio da Anna Luiza
       </Typography>
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20 }}>
         <Button
           variant="contained"
           color={recording ? 'error' : 'success'}
           startIcon={recording ? <StopIcon /> : <PlayArrowIcon />}
           onClick={recording ? stopRecording : startRecording}
-          sx={{ fontSize: 20, padding: '10px 30px', marginRight: '20px' }}
+          sx={{ fontSize: 18, padding: '8px 20px', marginBottom: '10px' }}
         >
           {recording ? 'Parar Gravação' : 'Iniciar Gravação'}
         </Button>
@@ -121,7 +121,7 @@ const AudioRecorder = () => {
           color="primary"
           startIcon={loadingDOCX ? <CircularProgress size={24} /> : <PictureAsPdfIcon />}
           onClick={generateDOCX}
-          sx={{ fontSize: 20, padding: '10px 30px', marginRight: '20px' }}
+          sx={{ fontSize: 18, padding: '8px 20px', marginBottom: '10px' }}
           disabled={!transcript || loadingDOCX}
         >
           {loadingDOCX ? 'Gerando DOCX...' : 'Gerar DOCX'}
@@ -132,7 +132,7 @@ const AudioRecorder = () => {
             variant="contained"
             color="secondary"
             startIcon={<AudiotrackIcon />}
-            sx={{ fontSize: 20, padding: '10px 30px' }}
+            sx={{ fontSize: 18, padding: '8px 20px' }}
             href={audioURL}
             download="audio.wav"
           >
